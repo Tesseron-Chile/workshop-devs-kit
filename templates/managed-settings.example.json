@@ -1,0 +1,26 @@
+{
+  "extraKnownMarketplaces": {
+    "tesseron-devs": {
+      "source": { "source": "git", "url": "https://git.ejemplo.cl/herramientas/tesseron-devs-kit.git" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "workshop-devs@tesseron-devs": true
+  },
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/*.jks)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.keystore)",
+      "Read(./secrets/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.m2/settings.xml)"
+    ]
+  }
+}
