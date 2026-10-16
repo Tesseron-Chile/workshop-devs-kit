@@ -1,36 +1,68 @@
 # Kit del workshop de devs (Tesseron)
 
-Plugin de Claude Code con las skills y los hooks del curso, adaptados a Java/Maven y a repos en CodeCommit, más un playbook de una página por técnica. Este repo es a la vez el marketplace (`tesseron-devs`) y el plugin (`workshop-devs`).
+Plugin de Claude Code con las skills y los hooks del curso, para repos Maven y Node, más un playbook de una página por técnica. Este repo es a la vez el marketplace (`tesseron-devs`) y el plugin (`workshop-devs`).
 
 Pedido P141, Día 3 (19-10-2026).
+
+## LAB kit del lunes
+
+Tres comandos, en cualquier terminal:
+
+```
+claude plugin marketplace add Tesseron-Chile/workshop-devs-kit
+claude plugin install workshop-devs@tesseron-devs
+claude plugin list
+```
+
+Para ver el hook bloquear un commit, en tu repo de grupo (el que salió del template):
+
+1. Crea un test que falle a propósito, por ejemplo en `test/rojo.test.js`: `import test from 'node:test'; import assert from 'node:assert'; test('rojo', () => assert.fail('rojo'))`.
+2. Pídele a Claude: «haz commit de todo con el mensaje "chore: prueba del hook"».
+3. El commit no sale y Claude ve: «Commit bloqueado: los tests fallaron (código N). Arregla el test o el código, o pide ayuda si no sale.» Borra el test y el commit pasa.
+
+Para el hook de secretos, agrega a un archivo una línea `password=hunter22xyz`, hazlo stage y pide el commit: el mensaje nombra el archivo y no imprime el valor.
 
 ## Qué trae
 
 | Componente | Detalle |
 |---|---|
-| Skills | `grill-me`, `plan-worktree`, `test-rojo` (incluye tests de caracterización para modernizar), `pr-tesseron` (CodeCommit y GitHub) |
-| Hooks | `PreToolUse` sobre `Bash`: `check-secrets` (bloquea `git commit` con una clave AWS, `password=valor` o una llave PEM) y `check-tests-before-commit` (bloquea `git commit` si `./mvnw -q test` falla) |
-| Playbook | `playbook/01` a `09`, una página por técnica |
+| Skills | `grill-me`, `plan-worktree`, `test-rojo` (incluye tests de caracterización para modernizar), `pr-tesseron` (GitHub y CodeCommit). Detectan el stack: Maven (`./mvnw`) o Node (`npm test`) |
+| Hooks | `PreToolUse` sobre `Bash`: `check-secrets` (bloquea `git commit` con una clave AWS, `password=valor` o una llave PEM) y `check-tests-before-commit` (bloquea `git commit` si fallan los tests: `./mvnw -q test` con `pom.xml`, `npm test` con `package.json`) |
+| Playbook | `playbook/01` a `10`, una página por técnica |
 | Plantillas | `templates/settings-deny.json` (deny rules para secretos) y `templates/managed-settings.example.json` (marketplace, plugin y deny rules exigidos por un administrador) |
+| Pruebas | `scripts/prueba-limpia.sh` (instalación en máquina limpia) y `scripts/prueba-hooks.sh` (los hooks con eventos JSON reales) |
 
 Las skills quedan con el prefijo del plugin: `/workshop-devs:grill-me`, `/workshop-devs:plan-worktree`, `/workshop-devs:test-rojo`, `/workshop-devs:pr-tesseron`.
 
+### Hooks: sin `jq` obligatorio, y qué pasa en un repo del lab
+
+Los hooks leen el JSON del evento con `jq`; si no está, con `python3`, y si tampoco, con `node`. Si no hay ninguno de los tres, dejan pasar el commit y avisan por stderr (no bloquean todo commit). Si no reconocen el stack, dejan pasar.
+
+Los repos creados desde el template del lab ya traen un hook de proyecto (`.claude/hooks/tests-antes-del-commit.mjs`) que corre `npm test` antes de cada commit. Decisión: si el plugin ve ese hook registrado en `.claude/settings.json`, **no repite `npm test`** (el hook del proyecto ya lo hace, y los tests no corren dos veces). El hook de secretos del plugin sí corre siempre: se solapa con el del lab en claves AWS y llaves privadas, y suma `password=` y claves `ASIA`. Un repo Node sin ese hook de proyecto recibe `npm test` del plugin. Un repo con `package.json` sin script de test no corre nada.
+
 ## Instalar
 
-Requisitos: Claude Code, `git` y `jq` (los hooks leen el JSON del evento con `jq`).
+Requisitos: Claude Code y `git`. Los hooks usan `jq`, `python3` o `node` (basta uno).
 
-Desde un directorio local (un clone de este repo):
+### Desde GitHub (camino principal)
 
 ```
-claude plugin marketplace add /ruta/al/clone/workshop-devs-kit
+claude plugin marketplace add Tesseron-Chile/workshop-devs-kit
 claude plugin install workshop-devs@tesseron-devs
 claude plugin list
 ```
 
-Desde un host git (cuando el repo viva en el git de la consultora):
+El repo es privado. Si el comando da un error de acceso (`Repository not found`, `Authentication failed` o un `403`):
+
+1. Pide entrar al team de la organización que tiene acceso al repo (`Tesseron-Chile`) y acepta la invitación por correo.
+2. Revisa las credenciales de git de tu máquina: Claude Code corre `git` con lo que ya tengas configurado. Con HTTPS, `gh auth login` y `gh auth setup-git`; con SSH, una clave cargada en `ssh-agent` y agregada a tu cuenta de GitHub. Prueba con `git ls-remote https://github.com/Tesseron-Chile/workshop-devs-kit.git`.
+3. Reintenta el `marketplace add`.
+
+### Desde un clone local (alternativa)
 
 ```
-claude plugin marketplace add https://git.ejemplo.cl/herramientas/tesseron-devs-kit.git
+git clone https://github.com/Tesseron-Chile/workshop-devs-kit.git
+claude plugin marketplace add /ruta/al/clone/workshop-devs-kit
 claude plugin install workshop-devs@tesseron-devs
 ```
 
@@ -58,11 +90,11 @@ Un plugin no puede llevar `permissions.deny`: de `settings` solo toman efecto `a
 Se activan solos al instalar el plugin. Para probarlos a mano:
 
 ```
-jq -nc --arg d "$PWD" '{tool_name:"Bash",cwd:$d,tool_input:{command:"git commit -m x"}}' \
-  | ~/.claude/plugins/.../hooks/check-secrets.sh; echo "exit=$?"
+printf '{"tool_name":"Bash","cwd":"%s","tool_input":{"command":"git commit -m x"}}' "$PWD" \
+  | plugins/workshop-devs/hooks/check-secrets.sh; echo "exit=$?"
 ```
 
-(Con el marketplace agregado desde un directorio local, los hooks quedan en `plugins/workshop-devs/hooks/` de ese directorio.) Exit 2 bloquea y el mensaje de stderr le llega a Claude.
+Exit 2 bloquea y el mensaje de stderr le llega a Claude. `scripts/prueba-hooks.sh <dir-del-plugin> <lab|java> <repo>` corre los casos completos (verde, rojo, secreto, con y sin `jq`).
 
 ## Desarrollo
 
@@ -70,23 +102,22 @@ jq -nc --arg d "$PWD" '{tool_name:"Bash",cwd:$d,tool_input:{command:"git commit 
 claude plugin validate .
 claude plugin validate plugins/workshop-devs
 claude --plugin-dir plugins/workshop-devs
+scripts/prueba-limpia.sh            # instalación en máquina limpia: contenedor (colima), Java, GitHub y sesión real
 ```
 
 `version` está solo en `plugin.json`. Súbela en cada release: una instalación cacheada no recibe commits nuevos si la versión no cambia (para un marketplace agregado desde un directorio local no aplica, se lee en el lugar).
 
 ## Decisiones tomadas
 
-1. **Un solo repo para marketplace y plugin.** `.claude-plugin/marketplace.json` en la raíz y el plugin en `plugins/workshop-devs/` (fuente relativa). Menos piezas para la consultora, y más adelante se pueden agregar plugins para PMs y QA en el mismo marketplace.
+1. **Un solo repo para marketplace y plugin.** `.claude-plugin/marketplace.json` en la raíz y el plugin en `plugins/workshop-devs/` (fuente relativa). Más adelante se pueden agregar plugins para PMs y QA en el mismo marketplace.
 2. **Nombres:** marketplace `tesseron-devs`, plugin `workshop-devs`. Ninguno cae en los nombres reservados de la doc.
-3. **`pr-tesseron` pasó a llamarse `pr-tesseron`.** El nombre original tenía la marca de Tesseron y el kit lo usa la consultora en sus proyectos. Pone CodeCommit primero y GitHub segundo, con el mismo contenido.
-4. **Las skills quedan en español neutro, con tú.** Los nombres de las tres primeras se mantienen (`grill-me`, `plan-worktree`, `test-rojo`) para que calcen con las slides.
-5. **`test-rojo` suma el caso de caracterización** (modernizar): tests verdes que congelan el comportamiento actual, en commit aparte, antes de migrar. Es el hilo del curso.
-6. **`grill-me` pregunta por los bordes bancarios** (redondeo con `BigDecimal`, zona horaria y corte de día, atomicidad de la auditoría).
-7. **Quité de las skills lo que era del lab** (referencias a M4, "stories del lab", `npm test`). Quedó `./mvnw -q test` y `-Dtest=` para iterar.
-8. **`plan-worktree` ya no habla de copiar skills a `~/.claude/skills`.** Con el plugin instalado a nivel usuario las skills están disponibles en cada worktree. Eso es una inferencia mía, no lo verifiqué contra la doc.
-9. **Hooks con `${CLAUDE_PLUGIN_ROOT}`**, scripts dentro del plugin (`hooks/`), `timeout: 300` en el de tests.
-10. **Cambios a los hooks respecto del demo:** `check-secrets` ignora `password=${VAR}` (referencias a variables, comunes en `application.properties` de Spring) para no bloquear commits legítimos; `check-tests-before-commit` usa `mvn` si no hay wrapper pero sí `pom.xml`, y no hace nada fuera de un proyecto Maven; sin `jq` ambos bloquean solo si el JSON crudo parece un `git commit` y piden instalarlo.
-11. **Deny rules como plantilla, no dentro del plugin**, por la limitación de arriba. Agregué a las del demo `*.jks`, `*.p12`, `*.keystore`, `~/.aws/**`, `~/.ssh/**` y `~/.m2/settings.xml` (donde Maven guarda credenciales de Nexus o Artifactory).
-12. **Sin `agents/`, `commands/` ni MCP.** El contrato habla de "skills, hooks y comandos", pero las skills ya se invocan como comandos (`/workshop-devs:...`) y la doc recomienda `skills/` para plugins nuevos.
-13. **Playbook:** cada página tiene Para qué, Cómo y Errores típicos, y solo afirma lo que dice la doc oficial. Lo no verificado está marcado (retención de datos en Bedrock, on-premise sin internet, CodeCommit como host).
-14. **Sin push, sin repo remoto.** Todo vive en este directorio.
+3. **Las skills salen de las del lab** (`.claude/skills/` de `workshop-devs-lab`, ajustadas en el Día 2) y se generalizan: detectan Maven o Node en vez de fijar `npm test`. La skill de PR se llama `pr-tesseron`, como en el curso, y mantiene la variante CodeCommit.
+4. **Español neutro, con tú.** Los nombres de las skills calzan con las slides.
+5. **`test-rojo` suma el caso de caracterización** (modernizar): tests verdes que congelan el comportamiento actual, en commit aparte, antes de migrar.
+6. **`grill-me` pregunta por los bordes bancarios** (redondeo con `BigDecimal`, zona horaria y corte de día, atomicidad de la auditoría) cuando el sistema mueve dinero o fechas.
+7. **Hooks con `${CLAUDE_PLUGIN_ROOT}`**, scripts dentro del plugin (`hooks/`), `timeout: 300` en `hooks.json` (aplica a ambos hooks).
+8. **Hooks por stack, sin `jq` obligatorio, y sin doble `npm test` en repos del lab** (ver arriba).
+9. **`check-secrets` ignora `password=${VAR}`** (referencias a variables, comunes en `application.properties` de Spring) y nombra el archivo sin imprimir el valor.
+10. **Deny rules como plantilla, no dentro del plugin**: un plugin no puede llevar `permissions.deny`. Las plantillas suman `*.jks`, `*.p12`, `*.keystore`, `~/.aws/**`, `~/.ssh/**` y `~/.m2/settings.xml`.
+11. **Sin `agents/`, `commands/` ni MCP.** Las skills ya se invocan como comandos (`/workshop-devs:...`) y la doc recomienda `skills/` para plugins nuevos.
+12. **Playbook:** cada página tiene Para qué, Cómo y Errores típicos, contrastada con lo que se enseñó en los decks de los Días 1 a 3. Lo no verificado está marcado (retención de datos en Bedrock, on-premise sin internet, CodeCommit como host).
