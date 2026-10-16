@@ -6,10 +6,14 @@
 
 | Hook | Bloquea cuando |
 |---|---|
-| `check-secrets.sh` | `git commit` con un diff que trae una clave AWS (AKIA/ASIA), `password=valor` o una llave PEM privada |
-| `check-tests-before-commit.sh` | `git commit` y `./mvnw -q test` falla (usa `mvn` si no hay wrapper) |
+| `check-secrets.sh` | `git commit` con un diff que trae una clave AWS (AKIA/ASIA), `password=valor` o una llave PEM privada. El mensaje dice qué encontró y en qué archivo, sin imprimir el valor |
+| `check-tests-before-commit.sh` | `git commit` y fallan los tests: `./mvnw -q test` (o `mvn -q test`) si hay `pom.xml`, `npm test` si hay `package.json`. Si no reconoce el stack, deja pasar |
 
-Los scripts leen el JSON del evento por stdin (`tool_input.command`, `cwd`) y requieren `jq`. Se referencian con `${CLAUDE_PLUGIN_ROOT}`.
+El mensaje de bloqueo es el del curso: «Commit bloqueado: los tests fallaron (código N). Arregla el test o el código, o pide ayuda si no sale.»
+
+Los scripts leen el JSON del evento por stdin (`tool_input.command`, `cwd`) con `jq`, o con `python3` o `node` si no hay `jq`. Si no hay ninguno de los tres, dejan pasar el commit con un aviso. Se referencian con `${CLAUDE_PLUGIN_ROOT}`.
+
+**Hook del proyecto y hook del plugin.** Un repo creado desde el template del lab ya trae su propio hook (`.claude/hooks/tests-antes-del-commit.mjs`, registrado en `.claude/settings.json`) que corre `npm test` y revisa secretos. En ese repo el hook de tests del plugin lo detecta y no repite `npm test`; el de secretos sí corre, porque además revisa `password=` y claves ASIA.
 
 **Probar un hook a mano**
 

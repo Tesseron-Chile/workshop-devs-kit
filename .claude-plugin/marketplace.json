@@ -1,15 +1,14 @@
 {
   "name": "tesseron-devs",
-  "description": "Marketplace privado del workshop de devs de Tesseron: skills y hooks para Java/Maven",
+  "description": "Marketplace del workshop de devs de Tesseron: skills y hooks para Java/Maven y Node",
   "owner": {
-    "name": "Tesseron",
-    "email": "mcadile@tesseron.cl"
+    "name": "Tesseron"
   },
   "plugins": [
     {
       "name": "workshop-devs",
       "source": "./plugins/workshop-devs",
-      "description": "Skills y hooks del workshop de devs, adaptados a Java/Maven y a repos en CodeCommit"
+      "description": "Skills y hooks del workshop de devs, para Maven y Node, con variante CodeCommit"
     }
   ]
 }

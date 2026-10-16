@@ -1,11 +1,17 @@
 {
   "name": "workshop-devs",
   "displayName": "Workshop devs",
-  "version": "0.1.0",
-  "description": "Skills y hooks del workshop de devs de Tesseron (oct-2026), adaptados a Java/Maven y a repos en CodeCommit",
+  "version": "1.0.0",
+  "description": "Skills y hooks del workshop de devs de Tesseron (oct-2026): grill-me, plan-worktree, test-rojo y pr-tesseron, con hooks de secretos y de tests para Maven y Node",
   "author": {
-    "name": "Tesseron",
-    "email": "mcadile@tesseron.cl"
+    "name": "Tesseron"
   },
-  "keywords": ["java", "maven", "codecommit", "spec", "hooks"]
+  "keywords": [
+    "java",
+    "maven",
+    "node",
+    "codecommit",
+    "spec",
+    "hooks"
+  ]
 }
