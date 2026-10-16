@@ -11,7 +11,7 @@
 #
 # Variables: LAB (clone del lab), JAVA_DEMO (repo Java demo), REF (rama o tag del marketplace en GitHub,
 # por defecto la rama actual), REPO_GH (por defecto Tesseron-Chile/workshop-devs-kit),
-# SESION_CONFIG (perfil de Claude Code con login que se copia para la sesión real, por defecto ~/.claude-demo).
+# SESION_CONFIG (perfil de Claude Code con login para la sesión real, por defecto ~/.claude-demo).
 # Si colima no levanta, `contenedor` se reemplaza por `host-limpio`: lo mismo con HOME y CLAUDE_CONFIG_DIR temporales.
 set -u
 KIT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -80,15 +80,21 @@ github() {
 sesion() {
   paso "Sesión real corta: /workshop-devs:test-rojo sobre un clone del lab"
   [ -n "${GH_CONFIG_DIR_USED:-}" ] || github >/dev/null || return 1
-  # La sesión necesita login: se parte de una copia del perfil con login y se le instala el plugin desde GitHub.
-  C="$(mktemp -d)/cfg"; cp -R "$SESION_CONFIG" "$C" 2>/dev/null || mkdir -p "$C"
-  export CLAUDE_CONFIG_DIR="$C"
-  claude plugin marketplace add "$REPO_GH#$REF" >/dev/null && claude plugin install workshop-devs@tesseron-devs >/dev/null
+  # La sesión necesita login, que en macOS va atado a la ruta del perfil: no se copia. Se usa el perfil con login
+  # tal cual (SESION_CONFIG) y se carga con --plugin-dir la copia del plugin que `github` instaló desde GitHub.
+  export CLAUDE_CONFIG_DIR="$SESION_CONFIG"
+  PLUGIN_GH="$(dirname "$(dirname "$(find "$GH_CONFIG_DIR_USED/plugins" -name check-secrets.sh | head -1)")")"
   L="$(mktemp -d)"; git clone -q "$LAB" "$L/lab"; cd "$L/lab" || return 1
   echo "--- claude -p \"/workshop-devs:test-rojo criterio 2 de la SPEC\" (sonnet, max 12 turnos, solo en $L/lab)"
   ok claude -p "/workshop-devs:test-rojo Aplica a la story del criterio 2 de workdocs/SPEC.md. No escribas código de producto, no hagas commit." \
-    --model sonnet --max-turns 12 --permission-mode acceptEdits --output-format json \
-    | python3 -c 'import sys,json; d=json.load(sys.stdin); print("resultado:", str(d.get("result",""))[:1200]); print("turnos:", d.get("num_turns"), "costo_usd:", d.get("total_cost_usd"))'
+    --plugin-dir "$PLUGIN_GH" --model sonnet --max-turns 12 --permission-mode acceptEdits --output-format json < /dev/null > "$L/salida.json" 2> "$L/salida.err"
+  python3 - "$L/salida.json" <<'PY'
+import sys, json
+txt = open(sys.argv[1]).read()
+d = json.loads(txt.strip().splitlines()[-1]) if txt.strip() else {}
+print("resultado:", str(d.get("result", ""))[:1200]); print("turnos:", d.get("num_turns"), "costo_usd:", d.get("total_cost_usd"))
+PY
+  head -c 600 "$L/salida.err"
   git -C "$L/lab" status --short
 }
 
