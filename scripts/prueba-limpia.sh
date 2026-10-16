@@ -31,14 +31,17 @@ contenedor() {
   colima status >/dev/null 2>&1 || colima start --cpu 2 --memory 4 || { echo "colima no levanta: usa host-limpio"; return 1; }
   # Se prueba lo commiteado: el contenedor clona el repo montado, no ve cambios sin commit.
   git -C "$KIT" diff --quiet HEAD || echo "AVISO: hay cambios sin commit; el contenedor solo ve lo commiteado."
-  ok docker run --rm -v "$KIT:/kit-src:ro" -v "$LAB:/lab-src:ro" -e REF="$REF" node:22 bash -c '
+  # El clone va bajo $HOME porque colima solo comparte esa ruta con el contenedor.
+  CLONES="$(mktemp -d "$HOME/.prueba-limpia.XXXXXX")"
+  git clone -q -b "$REF" "$KIT" "$CLONES/kit" || { echo "no se pudo clonar $REF"; return 1; }
+  ok docker run --rm -v "$CLONES/kit:/kit-src:ro" -v "$LAB:/lab-src:ro" node:22 bash -c '
     set -u
     git config --global --add safe.directory "*"
     export HOME=$(mktemp -d); cd "$HOME"
     echo "HOME=$HOME (vacío): $(ls -A $HOME | wc -l) archivos"
     echo "jq en el contenedor: $(command -v jq || echo no)"
     npm install -g @anthropic-ai/claude-code >/dev/null 2>&1; echo "claude $(claude --version)"
-    git clone -q /kit-src /kit && git -C /kit checkout -q "$REF" 2>/dev/null
+    git clone -q /kit-src /kit
     echo "--- claude plugin marketplace add /kit";  claude plugin marketplace add /kit || exit 1
     echo "--- claude plugin install workshop-devs@tesseron-devs"; claude plugin install workshop-devs@tesseron-devs || exit 1
     echo "--- claude plugin list"; claude plugin list || exit 1
@@ -48,6 +51,7 @@ contenedor() {
     echo "plugin instalado en $P"
     git clone -q /lab-src /lab
     bash /kit/scripts/prueba-hooks.sh "$P" lab /lab completo'
+  rm -rf "$CLONES"
 }
 
 java() {

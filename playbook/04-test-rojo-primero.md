@@ -5,9 +5,10 @@
 **Feature nuevo**
 
 1. Lee el criterio de tu story en la SPEC.
-2. Escribe el test de aceptación (JUnit 5, MockMvc si hay API).
-3. Córrelo: `./mvnw -q test -Dtest=MiTest`. Tiene que fallar, y por la aserción. Si pasa, reescríbelo.
-4. Recién ahora escribe el código de producto hasta ponerlo en verde.
+2. Escribe un test por criterio, con el número del criterio en el nombre (JUnit 5, MockMvc si hay API; `node:test` en un repo Node).
+3. Córrelo: `./mvnw -q test -Dtest=MiTest` en Maven, `npm test` en Node. Tiene que fallar, y por la aserción. Si pasa, reescríbelo.
+4. Pega el comando y el resultado en tu fila de `workdocs/status.md` (sección Tests de aceptación): sin evidencia del rojo, el verde de después no cuenta.
+5. Recién ahora escribe el código de producto hasta ponerlo en verde. El test pasa a ser la señal de que terminaste.
 
 **Modernizar un sistema legacy**
 
