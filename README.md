@@ -2,7 +2,7 @@
 
 Plugin de Claude Code con las skills y los hooks del curso, para repos Maven y Node, más un playbook de una página por técnica. Este repo es a la vez el marketplace (`tesseron-devs`) y el plugin (`workshop-devs`).
 
-Pedido P141, Día 3 (19-10-2026).
+Kit del Día 3 del curso (19-10-2026).
 
 ## LAB kit del lunes
 
@@ -52,23 +52,19 @@ claude plugin install workshop-devs@tesseron-devs
 claude plugin list
 ```
 
-El repo es privado. Si el comando da un error de acceso (`Repository not found`, `Authentication failed` o un `403`):
+Necesitas `git` y salida a GitHub. Si da error, prueba el plan B de abajo.
 
-1. Pide entrar al team de la organización que tiene acceso al repo (`Tesseron-Chile`) y acepta la invitación por correo.
-2. Revisa las credenciales de git de tu máquina: Claude Code corre `git` con lo que ya tengas configurado. Con HTTPS, `gh auth login` y `gh auth setup-git`; con SSH, una clave cargada en `ssh-agent` y agregada a tu cuenta de GitHub. Prueba con `git ls-remote https://github.com/Tesseron-Chile/workshop-devs-kit.git`.
-3. Reintenta el `marketplace add`.
-
-### Desde un clone local (alternativa)
+### Plan B: clone local o zip
 
 ```
-git clone https://github.com/Tesseron-Chile/workshop-devs-kit.git
+git clone https://github.com/Tesseron-Chile/workshop-devs-kit.git      # o descarga el zip del repo y descomprímelo
 claude plugin marketplace add /ruta/al/clone/workshop-devs-kit
 claude plugin install workshop-devs@tesseron-devs
 ```
 
 Dentro de una sesión, `/plugin marketplace add ...` hace lo mismo. Para actualizar: `claude plugin marketplace update tesseron-devs` y `claude plugin update workshop-devs@tesseron-devs`.
 
-### Acceso a un marketplace privado
+### Si el kit vive en un host git privado
 
 Según la doc, Claude Code corre `git` en la máquina de cada usuario sin prompts interactivos y usa las credenciales que esa máquina ya tenga (clave SSH cargada en `ssh-agent`, o un credential helper de git para HTTPS). No hay un campo para un token en `marketplace.json`.
 

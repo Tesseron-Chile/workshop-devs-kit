@@ -1,9 +1,8 @@
 {
   "name": "tesseron-devs",
-  "description": "Marketplace privado del workshop de devs de Tesseron: skills y hooks para Java/Maven y Node",
+  "description": "Marketplace del workshop de devs de Tesseron: skills y hooks para Java/Maven y Node",
   "owner": {
-    "name": "Tesseron",
-    "email": "mcadile@tesseron.cl"
+    "name": "Tesseron"
   },
   "plugins": [
     {
