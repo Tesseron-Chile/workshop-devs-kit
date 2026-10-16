@@ -12,7 +12,7 @@
 
 **Reglas**
 
-- El humano hace el merge. Cada worker abre su PR y para (`/workshop-devs:abrir-pr`).
+- El humano hace el merge. Cada worker abre su PR y para (`/workshop-devs:pr-tesseron`).
 - Un worker que escribe archivos corre en un worktree desechable, nunca en tu checkout de trabajo.
 - Mira el costo: más agentes consumen más tokens. Mide con `claude -p --output-format json` (campo `total_cost_usd`, una estimación del cliente).
 

@@ -8,12 +8,12 @@ Pedido P141, Día 3 (19-10-2026).
 
 | Componente | Detalle |
 |---|---|
-| Skills | `grill-me`, `plan-worktree`, `test-rojo` (incluye tests de caracterización para modernizar), `abrir-pr` (CodeCommit y GitHub) |
+| Skills | `grill-me`, `plan-worktree`, `test-rojo` (incluye tests de caracterización para modernizar), `pr-tesseron` (CodeCommit y GitHub) |
 | Hooks | `PreToolUse` sobre `Bash`: `check-secrets` (bloquea `git commit` con una clave AWS, `password=valor` o una llave PEM) y `check-tests-before-commit` (bloquea `git commit` si `./mvnw -q test` falla) |
 | Playbook | `playbook/01` a `09`, una página por técnica |
 | Plantillas | `templates/settings-deny.json` (deny rules para secretos) y `templates/managed-settings.example.json` (marketplace, plugin y deny rules exigidos por un administrador) |
 
-Las skills quedan con el prefijo del plugin: `/workshop-devs:grill-me`, `/workshop-devs:plan-worktree`, `/workshop-devs:test-rojo`, `/workshop-devs:abrir-pr`.
+Las skills quedan con el prefijo del plugin: `/workshop-devs:grill-me`, `/workshop-devs:plan-worktree`, `/workshop-devs:test-rojo`, `/workshop-devs:pr-tesseron`.
 
 ## Instalar
 
@@ -78,7 +78,7 @@ claude --plugin-dir plugins/workshop-devs
 
 1. **Un solo repo para marketplace y plugin.** `.claude-plugin/marketplace.json` en la raíz y el plugin en `plugins/workshop-devs/` (fuente relativa). Menos piezas para la consultora, y más adelante se pueden agregar plugins para PMs y QA en el mismo marketplace.
 2. **Nombres:** marketplace `tesseron-devs`, plugin `workshop-devs`. Ninguno cae en los nombres reservados de la doc.
-3. **`pr-tesseron` pasó a llamarse `abrir-pr`.** El nombre original tenía la marca de Tesseron y el kit lo usa la consultora en sus proyectos. Pone CodeCommit primero y GitHub segundo, con el mismo contenido.
+3. **`pr-tesseron` pasó a llamarse `pr-tesseron`.** El nombre original tenía la marca de Tesseron y el kit lo usa la consultora en sus proyectos. Pone CodeCommit primero y GitHub segundo, con el mismo contenido.
 4. **Las skills quedan en español neutro, con tú.** Los nombres de las tres primeras se mantienen (`grill-me`, `plan-worktree`, `test-rojo`) para que calcen con las slides.
 5. **`test-rojo` suma el caso de caracterización** (modernizar): tests verdes que congelan el comportamiento actual, en commit aparte, antes de migrar. Es el hilo del curso.
 6. **`grill-me` pregunta por los bordes bancarios** (redondeo con `BigDecimal`, zona horaria y corte de día, atomicidad de la auditoría).

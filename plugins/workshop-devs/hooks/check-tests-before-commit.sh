@@ -1,47 +1,49 @@
 #!/usr/bin/env bash
-# PreToolUse (Bash): bloquea `git commit` si los tests de Maven fallan.
-# Usa `./mvnw -q test`; si no hay wrapper pero sí pom.xml y `mvn`, usa `mvn -q test`.
+# PreToolUse (Bash): bloquea `git commit` si los tests del proyecto fallan.
+#   pom.xml      -> ./mvnw -q test (o mvn -q test si no hay wrapper)
+#   package.json -> npm test
+# Si no reconoce el stack, deja pasar. Si el repo ya trae el hook del lab
+# (.claude/hooks/tests-antes-del-commit.mjs registrado en .claude/settings.json), no repite npm test.
 # Entrada: JSON del hook por stdin. Salida: exit 2 bloquea y el mensaje de stderr le llega a Claude.
 set -u
+. "$(dirname "$0")/lib.sh"
+read_commit_event check-tests-before-commit
 
-input="$(cat)"
-COMMIT_RE='(^|[;&|[:space:]])git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?commit([[:space:]]|$)'
+fail() { # fail <comando> <código> <log>
+  {
+    echo "Commit bloqueado: los tests fallaron (código $2). Arregla el test o el código, o pide ayuda si no sale."
+    echo "Comando: $1"
+    echo "Últimas líneas del resultado:"
+    tail -n 25 "$3"
+  } >&2
+  rm -f "$3"
+  exit 2
+}
 
-if ! command -v jq >/dev/null 2>&1; then
-  if printf '%s' "$input" | grep -Eq "git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?commit"; then
-    echo "BLOQUEADO por workshop-devs: falta 'jq' en el PATH, así que no se puede revisar el commit. Instala jq y reintenta." >&2
-    exit 2
+run() { # run <comando...>
+  local log; log="$(mktemp)"
+  "$@" >"$log" 2>&1
+  local code=$?
+  [ "$code" -eq 0 ] && { rm -f "$log"; return 0; }
+  fail "$*" "$code" "$log"
+}
+
+if [ -f pom.xml ]; then
+  if [ -x ./mvnw ]; then run ./mvnw -q test
+  elif command -v mvn >/dev/null 2>&1; then run mvn -q test
+  else echo "AVISO workshop-devs: hay pom.xml pero no ./mvnw ni mvn, no se corrieron los tests." >&2
   fi
-  exit 0
 fi
 
-command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
-cwd="$(printf '%s' "$input" | jq -r '.cwd // empty')"
-
-if ! printf '%s' "$command" | grep -Eq "$COMMIT_RE"; then
-  exit 0
+if [ -f package.json ]; then
+  if [ -f .claude/hooks/tests-antes-del-commit.mjs ] && grep -q 'tests-antes-del-commit' .claude/settings.json 2>/dev/null; then
+    :   # el hook del proyecto ya corre npm test antes de este commit
+  elif ! grep -q '"test"' package.json || grep -q 'no test specified' package.json; then
+    :   # sin script de test: nada que correr
+  elif command -v npm >/dev/null 2>&1; then
+    run npm test
+  else
+    echo "AVISO workshop-devs: hay package.json pero no npm, no se corrieron los tests." >&2
+  fi
 fi
-
-cd "${cwd:-.}" || exit 0
-
-if [ -x ./mvnw ]; then
-  runner="./mvnw"
-elif [ -f pom.xml ] && command -v mvn >/dev/null 2>&1; then
-  runner="mvn"
-else
-  exit 0   # no es un proyecto Maven: no hay nada que correr
-fi
-
-log="$(mktemp)"
-if "$runner" -q test >"$log" 2>&1; then
-  rm -f "$log"
-  exit 0
-fi
-
-{
-  echo "BLOQUEADO por workshop-devs (check-tests-before-commit): '$runner -q test' falla."
-  echo "Últimas líneas del resultado:"
-  grep -E 'ERROR|FAIL|Tests run:' "$log" | head -15
-  echo "Arregla los tests y vuelve a intentar el commit. Log completo: $log"
-} >&2
-exit 2
+exit 0
