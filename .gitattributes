@@ -1,0 +1,5 @@
+# Git for Windows trae core.autocrlf=true: sin esto los .sh llegan con CRLF y bash falla con $'\r': command not found.
+* text=auto
+*.sh text eol=lf
+*.json text eol=lf
+*.md text eol=lf

@@ -17,9 +17,9 @@ caso() { # caso <nombre> <exit esperado> <exit real> [texto esperado en stderr] 
 
 evento() { # evento <comando> -> JSON del hook, armado con python3 o node del host
   if command -v python3 >/dev/null 2>&1; then
-    python3 -c 'import json,sys; print(json.dumps({"tool_name":"Bash","cwd":sys.argv[2],"tool_input":{"command":sys.argv[1]}}))' "$1" "$WORK"
+    python3 -c 'import json,sys; print(json.dumps({"tool_name":"Bash","cwd":sys.argv[2],"tool_input":{"command":sys.argv[1]}}))' "$1" "${EVENT_CWD:-$WORK}"
   else
-    node -e 'console.log(JSON.stringify({tool_name:"Bash",cwd:process.argv[2],tool_input:{command:process.argv[1]}}))' "$1" "$WORK"
+    node -e 'console.log(JSON.stringify({tool_name:"Bash",cwd:process.argv[2],tool_input:{command:process.argv[1]}}))' "$1" "${EVENT_CWD:-$WORK}"
   fi
 }
 
@@ -101,6 +101,23 @@ if [ "$TIPO" = lab ]; then
 fi
 correr check-tests-before-commit.sh "$GIT_COMMIT" "$SIN_LECTOR"
 caso "tests: sin jq, python3 ni node deja pasar con aviso" 0 $? "AVISO workshop-devs"
+# --- Windows, simulado: python3 falso de la Microsoft Store y cwd con ruta de Windows ---
+if command -v node >/dev/null 2>&1; then
+  STUB="$(mktemp -d)"; printf '#!/bin/sh\nexit 9009\n' > "$STUB/python3"; chmod +x "$STUB/python3"
+  correr check-tests-before-commit.sh "$GIT_COMMIT" "$STUB:$SIN_JQ"
+  caso "windows: python3 falso (sale 9009) y sin jq: cae a node y bloquea el rojo" 2 $? "los tests fallaron"
+  echo "aws_key = $AKIA" > config-prueba.txt; git add config-prueba.txt
+  correr check-secrets.sh "$GIT_COMMIT" "$STUB:$SIN_JQ"
+  caso "windows: python3 falso y sin jq: el hook de secretos bloquea" 2 $? "config-prueba.txt"
+  git rm -qf --cached config-prueba.txt; rm -f config-prueba.txt
+  rm -rf "$STUB"
+fi
+FAKE="$(mktemp -d)"   # cygpath falso: C:\ruta\x -> /ruta/x
+printf '#!/bin/sh\n[ "$1" = "-u" ] && shift\nprintf "%%s" "$1" | sed "s|^[A-Za-z]:||; s|\\\\|/|g"\n' > "$FAKE/cygpath"; chmod +x "$FAKE/cygpath"
+EVENT_CWD="C:$(printf '%s' "$WORK" | sed 's|/|\\|g')"
+correr check-tests-before-commit.sh "$GIT_COMMIT" "$FAKE:$PATH"
+caso "windows: cwd 'C:\\...' con cygpath entra al repo y bloquea el rojo" 2 $? "los tests fallaron"
+unset EVENT_CWD; rm -rf "$FAKE"
 quitar_rojo
 
 # --- secretos ---
