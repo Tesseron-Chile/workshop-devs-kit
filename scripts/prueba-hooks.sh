@@ -114,7 +114,12 @@ if command -v node >/dev/null 2>&1; then
   rm -rf "$STUB"
 fi
 FAKE="$(mktemp -d)"   # cygpath falso: C:\ruta\x -> /ruta/x
-printf '#!/bin/sh\n[ "$1" = "-u" ] && shift\nprintf "%%s" "$1" | sed "s|^[A-Za-z]:||; s|\\\\|/|g"\n' > "$FAKE/cygpath"; chmod +x "$FAKE/cygpath"
+cat > "$FAKE/cygpath" <<'SH'
+#!/bin/sh
+[ "$1" = "-u" ] && shift
+printf '%s' "$1" | sed 's|^[A-Za-z]:||; s|\\|/|g'
+SH
+chmod +x "$FAKE/cygpath"
 EVENT_CWD="C:$(printf '%s' "$WORK" | sed 's|/|\\|g')"
 correr check-tests-before-commit.sh "$GIT_COMMIT" "$FAKE:$PATH"
 caso "windows: cwd 'C:\\...' con cygpath entra al repo y bloquea el rojo" 2 $? "los tests fallaron"
