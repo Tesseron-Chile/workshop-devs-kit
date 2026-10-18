@@ -71,6 +71,7 @@ quitar_rojo() { rm -f test/rojo.test.js modules/transferencias/src/test/java/cl/
 echo "== Hooks sobre $TIPO ($MODO) =="
 preparar
 GIT_COMMIT='git commit -m "feat: prueba"'
+AKIA="AKIA""ABCDEFGHIJKLMNOP"   # partido a propósito: el literal completo en este archivo dispara el hook
 SIN_JQ="$(path_sin jq)"
 SIN_JQ_PY="$(path_sin jq python3)"
 SIN_LECTOR="$(path_sin jq python3 node)"
@@ -121,7 +122,6 @@ unset EVENT_CWD; rm -rf "$FAKE"
 quitar_rojo
 
 # --- secretos ---
-AKIA="AKIA""ABCDEFGHIJKLMNOP"   # partido a propósito: el literal completo en este archivo dispara el hook
 echo "aws_key = $AKIA" > config-prueba.txt
 git add config-prueba.txt
 correr check-secrets.sh "$GIT_COMMIT"

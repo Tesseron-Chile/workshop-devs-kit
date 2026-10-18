@@ -26,8 +26,8 @@ echo '{"tool_name":"Bash","cwd":"/tmp","tool_input":{"command":"ls"}}' | "$T/con
 chequeo "el hook corre sin errores de \\r (exit 0)" $([ $? -eq 0 ] && ! grep -q $'\r' "$T/err" && echo 1 || echo 0)
 
 echo "== 2. El mismo clone sin .gitattributes: se reproduce el problema =="
-git -c core.autocrlf=true clone -q -b "$REF" "$KIT" "$T/sin" || exit 1
-( cd "$T/sin" && rm .gitattributes && git rm --cached -rq . && git reset -q --hard 2>/dev/null; git -c core.autocrlf=true checkout -q -f . 2>/dev/null; rm -rf plugins; git -c core.autocrlf=true checkout -q -- plugins )
+git clone -q -b "$REF" "$KIT" "$T/sin0" && git -C "$T/sin0" -c user.email=a@b -c user.name=prueba rm -q .gitattributes && git -C "$T/sin0" -c user.email=a@b -c user.name=prueba commit -qm "sin gitattributes"
+git -c core.autocrlf=true clone -q "$T/sin0" "$T/sin" || exit 1
 n="$(con_cr "$T/sin/plugins/workshop-devs/hooks/check-secrets.sh")"
 chequeo "sin .gitattributes los .sh quedan con CRLF ($n líneas)" $([ "${n:-0}" -gt 0 ] && echo 1 || echo 0)
 echo '{}' | "$T/sin/plugins/workshop-devs/hooks/check-secrets.sh" 2>"$T/err2"; c=$?
