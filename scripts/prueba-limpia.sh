@@ -6,6 +6,7 @@
 #               clone montado, plugin install, plugin list y los hooks sobre un clone del lab.
 #   java        Los hooks sobre una copia del repo Java demo, en el host (el contenedor no trae JDK).
 #   github      En el host, con CLAUDE_CONFIG_DIR temporal: marketplace add desde GitHub e install.
+#   publico     Como `contenedor` pero instalando desde GitHub (repo público) sin montar llaves ni credenciales: lo que ve un participante.
 #   sesion      En el host, con el plugin instalado desde GitHub: sesión real corta con /workshop-devs:test-rojo.
 #   todo        Las cuatro, en ese orden (por defecto).
 #
@@ -59,6 +60,28 @@ java() {
   ok "$KIT/scripts/prueba-hooks.sh" "$KIT/plugins/workshop-devs" java "$JAVA_DEMO" completo
 }
 
+publico() {
+  paso "Contenedor limpio, repo público: marketplace desde GitHub ($REPO_GH, ref $REF), sin llaves SSH ni credential helper"
+  colima status >/dev/null 2>&1 || colima start --cpu 2 --memory 4 || { echo "colima no levanta"; return 1; }
+  # Solo se monta el lab (código, sin credenciales) y los scripts del kit; ni ~/.ssh ni la config de git del host.
+  ok docker run --rm -v "$LAB:/lab-src:ro" -v "$KIT/scripts:/scripts:ro" -e REF="$REF" -e REPO_GH="$REPO_GH" node:22 bash -c '
+    set -u
+    git config --global --add safe.directory "*"
+    export HOME=$(mktemp -d); cd "$HOME"
+    echo "HOME vacío: $(ls -A $HOME | wc -l) archivos; ~/.ssh: $(ls -A $HOME/.ssh 2>/dev/null | wc -l) archivos; credential.helper: $(git config --get credential.helper || echo ninguno)"
+    npm install -g @anthropic-ai/claude-code >/dev/null 2>&1; echo "claude $(claude --version)"
+    echo "--- claude plugin marketplace add $REPO_GH (ref $REF)"
+    if [ "$REF" = main ]; then SRC="$REPO_GH"; else SRC="$REPO_GH#$REF"; fi
+    claude plugin marketplace add "$SRC" || exit 1
+    echo "--- claude plugin install workshop-devs@tesseron-devs"; claude plugin install workshop-devs@tesseron-devs || exit 1
+    echo "--- claude plugin list"; claude plugin list || exit 1
+    echo "--- skills instaladas"; ls $HOME/.claude/plugins/cache/*/workshop-devs/*/skills
+    P=$(dirname $(dirname $(find $HOME/.claude/plugins/cache -name check-secrets.sh | head -1)))
+    echo "plugin instalado en $P"
+    git clone -q /lab-src /lab
+    bash /scripts/prueba-hooks.sh "$P" lab /lab completo'
+}
+
 host_config() { # crea un HOME y un CLAUDE_CONFIG_DIR temporales
   T="$(mktemp -d)"; export CLAUDE_CONFIG_DIR="$T/claude-config"; mkdir -p "$CLAUDE_CONFIG_DIR"
 }
@@ -102,6 +125,7 @@ case "${1:-todo}" in
   contenedor) contenedor ;;
   java) java ;;
   github) github ;;
+  publico) publico ;;
   sesion) sesion ;;
   todo) contenedor; java; github; sesion ;;
   *) echo "uso: $0 [contenedor|java|github|sesion|todo]"; exit 2 ;;
