@@ -36,6 +36,6 @@ echo "  (sin .gitattributes: exit $c; $(head -c 160 "$T/err2" | tr -d '\r' | hea
 echo "== 3. Hooks del clone con .gitattributes, incluidos python3 falso y cwd de Windows =="
 "$T/con/scripts/prueba-hooks.sh" "$T/con/plugins/workshop-devs" lab "$LAB" completo || FALLAS=$((FALLAS+1))
 
-rm -rf "$T"
+# Los directorios temporales se dejan (sin rm -rf): cada corrida crea uno nuevo con mktemp -d.
 echo "== Windows simulado: $FALLAS falla(s) =="
 [ "$FALLAS" -eq 0 ]
