@@ -17,9 +17,9 @@ caso() { # caso <nombre> <exit esperado> <exit real> [texto esperado en stderr] 
 
 evento() { # evento <comando> -> JSON del hook, armado con python3 o node del host
   if command -v python3 >/dev/null 2>&1; then
-    python3 -c 'import json,sys; print(json.dumps({"tool_name":"Bash","cwd":sys.argv[2],"tool_input":{"command":sys.argv[1]}}))' "$1" "$WORK"
+    python3 -c 'import json,sys; print(json.dumps({"tool_name":"Bash","cwd":sys.argv[2],"tool_input":{"command":sys.argv[1]}}))' "$1" "${EVENT_CWD:-$WORK}"
   else
-    node -e 'console.log(JSON.stringify({tool_name:"Bash",cwd:process.argv[2],tool_input:{command:process.argv[1]}}))' "$1" "$WORK"
+    node -e 'console.log(JSON.stringify({tool_name:"Bash",cwd:process.argv[2],tool_input:{command:process.argv[1]}}))' "$1" "${EVENT_CWD:-$WORK}"
   fi
 }
 
@@ -48,11 +48,11 @@ correr() { # correr <hook> <comando-git> [PATH]
 
 preparar() { # copia limpia del repo con un commit inicial
   WORK="$(mktemp -d)"; ERR="$(mktemp)"
-  if [ -d "$ORIGEN/.git" ]; then git clone -q "$ORIGEN" "$WORK" 2>/dev/null; else cp -R "$ORIGEN/." "$WORK"; fi
+  if [ -d "$ORIGEN/.git" ]; then git clone -q "$ORIGEN" "$WORK" 2>/dev/null; else tar -C "$ORIGEN" --exclude=target --exclude=node_modules -cf - . | tar -C "$WORK" -xf -; fi
   cd "$WORK" || exit 1
   [ -d .git ] || git init -q -b main
   git config user.email prueba@example.com; git config user.name Prueba
-  rm -rf target node_modules; git add -A >/dev/null 2>&1; git commit -qm base --no-verify >/dev/null 2>&1 || true
+  git add -A >/dev/null 2>&1; git commit -qm base --no-verify >/dev/null 2>&1 || true
   [ "$TIPO" = lab ] && npm install --silent >/dev/null 2>&1
   return 0
 }
@@ -71,6 +71,7 @@ quitar_rojo() { rm -f test/rojo.test.js modules/transferencias/src/test/java/cl/
 echo "== Hooks sobre $TIPO ($MODO) =="
 preparar
 GIT_COMMIT='git commit -m "feat: prueba"'
+AKIA="AKIA""ABCDEFGHIJKLMNOP"   # partido a propósito: el literal completo en este archivo dispara el hook
 SIN_JQ="$(path_sin jq)"
 SIN_JQ_PY="$(path_sin jq python3)"
 SIN_LECTOR="$(path_sin jq python3 node)"
@@ -101,10 +102,30 @@ if [ "$TIPO" = lab ]; then
 fi
 correr check-tests-before-commit.sh "$GIT_COMMIT" "$SIN_LECTOR"
 caso "tests: sin jq, python3 ni node deja pasar con aviso" 0 $? "AVISO workshop-devs"
+# --- Windows, simulado: python3 falso de la Microsoft Store y cwd con ruta de Windows ---
+if command -v node >/dev/null 2>&1; then
+  STUB="$(mktemp -d)"; printf '#!/bin/sh\nexit 9009\n' > "$STUB/python3"; chmod +x "$STUB/python3"
+  correr check-tests-before-commit.sh "$GIT_COMMIT" "$STUB:$SIN_JQ"
+  caso "windows: python3 falso (sale 9009) y sin jq: cae a node y bloquea el rojo" 2 $? "los tests fallaron"
+  echo "aws_key = $AKIA" > config-prueba.txt; git add config-prueba.txt
+  correr check-secrets.sh "$GIT_COMMIT" "$STUB:$SIN_JQ"
+  caso "windows: python3 falso y sin jq: el hook de secretos bloquea" 2 $? "config-prueba.txt"
+  git rm -qf --cached config-prueba.txt; rm -f config-prueba.txt
+fi
+FAKE="$(mktemp -d)"   # cygpath falso: C:\ruta\x -> /ruta/x
+cat > "$FAKE/cygpath" <<'SH'
+#!/bin/sh
+[ "$1" = "-u" ] && shift
+printf '%s' "$1" | sed 's|^[A-Za-z]:||; s|\\|/|g'
+SH
+chmod +x "$FAKE/cygpath"
+EVENT_CWD="C:$(printf '%s' "$WORK" | sed 's|/|\\|g')"
+correr check-tests-before-commit.sh "$GIT_COMMIT" "$FAKE:$PATH"
+caso "windows: cwd 'C:\\...' con cygpath entra al repo y bloquea el rojo" 2 $? "los tests fallaron"
+unset EVENT_CWD
 quitar_rojo
 
 # --- secretos ---
-AKIA="AKIA""ABCDEFGHIJKLMNOP"   # partido a propósito: el literal completo en este archivo dispara el hook
 echo "aws_key = $AKIA" > config-prueba.txt
 git add config-prueba.txt
 correr check-secrets.sh "$GIT_COMMIT"
@@ -133,6 +154,6 @@ git rm -qf --cached llave-prueba.pem; rm -f llave-prueba.pem
 
 correr check-secrets.sh "$GIT_COMMIT"; caso "secretos: diff limpio pasa" 0 $?
 
-[ -n "${KEEP:-}" ] || rm -rf "$WORK" "$SHIM" "$SIN_JQ" "$SIN_JQ_PY" "$SIN_LECTOR" "$ERR" "$ERR.settings"
+# Los directorios temporales se dejan (sin rm -rf): cada corrida crea uno nuevo con mktemp -d.
 echo "== $TIPO: $FALLAS caso(s) con falla =="
 [ "$FALLAS" -eq 0 ]

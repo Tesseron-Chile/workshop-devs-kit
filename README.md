@@ -22,6 +22,17 @@ Para ver el hook bloquear un commit, en tu repo de grupo (el que salió del temp
 
 Para el hook de secretos, agrega a un archivo una línea `password=hunter22xyz`, hazlo stage y pide el commit: el mensaje nombra el archivo y no imprime el valor.
 
+## Windows
+
+Claude Code en Windows corre los comandos con Git Bash, así que instala [Git for Windows](https://git-scm.com/download/win) antes que nada. Los hooks son scripts `bash` y corren con ese bash. `claude plugin marketplace add` y `install` usan el `git` de esa instalación.
+
+- **Fin de línea.** Git for Windows trae `core.autocrlf=true`, que convierte los archivos a CRLF al clonar. Un `.sh` con CRLF falla con `$'\r': command not found` o `env: bash\r: No such file or directory`. El repo trae un `.gitattributes` que fuerza LF en los `.sh`, así que el clone de `marketplace add` los deja bien. Para comprobarlo, en Git Bash: `grep -c $'\r' ~/.claude/plugins/cache/tesseron-devs/workshop-devs/*/hooks/*.sh` debe dar `0` en cada archivo (`file <archivo>` dice "with CRLF line terminators" si no). Si da más de 0, corre `claude plugin marketplace update tesseron-devs` y reinstala; si persiste, clona con `git -c core.autocrlf=false clone ...` y usa el plan B (clone local).
+- **`python3` de la Microsoft Store.** En Windows `python3` suele ser un alias de la tienda: está en el PATH pero no corre Python. Los hooks prueban cada lector (`jq`, `python3`, `node`) de verdad y usan el primero que funciona. Claude Code ya trae Node en el PATH de la sesión en la mayoría de las instalaciones. Si ninguno funciona, el hook deja pasar el commit y avisa por stderr.
+- **Rutas.** El evento trae `cwd` como `C:\Users\...`; los hooks lo convierten con `cygpath -u` cuando existe.
+- **Plan B del curso.** Si algo falla en un Windows, se muestra el hook desde un Mac.
+
+Probado en Mac con simulación (clone con `core.autocrlf=true`, `python3` falso que sale con 9009, `cygpath` falso): `scripts/prueba-windows.sh`. Sin probar en un Windows real: la ejecución directa del `.sh` desde `hooks.json` en Git Bash, la ruta de `${CLAUDE_PLUGIN_ROOT}` con barras invertidas y el `cygpath` real.
+
 ## Qué trae
 
 | Componente | Detalle |

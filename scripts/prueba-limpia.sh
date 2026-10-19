@@ -51,7 +51,6 @@ contenedor() {
     echo "plugin instalado en $P"
     git clone -q /lab-src /lab
     bash /kit/scripts/prueba-hooks.sh "$P" lab /lab completo'
-  rm -rf "$CLONES"
 }
 
 java() {
